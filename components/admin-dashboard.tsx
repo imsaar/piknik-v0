@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Copy, Mail, MessageSquare, RefreshCw, Settings, Trash2 } from "lucide-react"
+import { Copy, Mail, MessageSquare, RefreshCw, Settings, Trash2, Plus } from "lucide-react"
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -21,8 +21,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import type { Potluck, Participant } from "@/lib/types"
-import { updateNotificationSettings, messageParticipant } from "@/lib/actions"
+import type { Potluck, Participant, PotluckItem } from "@/lib/types"
+import { updateNotificationSettings, messageParticipant, addPotluckItem, updatePotluckItem, removePotluckItem } from "@/lib/actions"
 
 interface AdminDashboardProps {
   potluck: Potluck
@@ -34,11 +34,18 @@ export function AdminDashboard({ potluck }: AdminDashboardProps) {
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
   const [messageText, setMessageText] = useState("")
   const [participantUrl, setParticipantUrl] = useState("")
+  const [addItemDialogOpen, setAddItemDialogOpen] = useState(false)
+  const [editItemDialogOpen, setEditItemDialogOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<PotluckItem | null>(null)
+  const [itemName, setItemName] = useState("")
+  const [itemQuantity, setItemQuantity] = useState(1)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Set the participant URL after component mounts to avoid window is not defined error
   useEffect(() => {
-    setParticipantUrl(`${window.location.origin}/potluck/${potluck.id}`)
-  }, [potluck.id])
+    // Use eventCode instead of id for the participant URL
+    setParticipantUrl(`${window.location.origin}/potluck/${potluck.eventCode}`)
+  }, [potluck.eventCode])
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(participantUrl)
@@ -51,12 +58,23 @@ export function AdminDashboard({ potluck }: AdminDashboardProps) {
   const handleNotificationToggle = async (checked: boolean) => {
     setNotificationsEnabled(checked)
     try {
-      await updateNotificationSettings(potluck.id, checked)
+      // Get the admin token from the URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminToken = urlParams.get('token') || potluck.adminToken;
+      
+      if (!adminToken) {
+        throw new Error('Admin token not found');
+      }
+      
+      // Use eventCode and adminToken instead of id
+      await updateNotificationSettings(potluck.eventCode, adminToken, checked)
+      
       toast({
         title: "Settings updated",
         description: `Email notifications ${checked ? "enabled" : "disabled"}.`,
       })
     } catch (error) {
+      console.error('Error updating notification settings:', error);
       setNotificationsEnabled(!checked) // Revert on error
       toast({
         title: "Error",
@@ -75,17 +93,153 @@ export function AdminDashboard({ potluck }: AdminDashboardProps) {
     if (!selectedParticipant || !messageText.trim()) return
 
     try {
-      await messageParticipant(potluck.id, selectedParticipant.id, messageText)
+      // Get the admin token from the URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminToken = urlParams.get('token') || potluck.adminToken;
+      
+      if (!adminToken) {
+        throw new Error('Admin token not found');
+      }
+      
+      // Use eventCode, adminToken, and participant's token
+      await messageParticipant(potluck.eventCode, adminToken, selectedParticipant.token || selectedParticipant.id, messageText)
+      
       toast({
         title: "Message sent",
-        description: `Your message has been sent to ${selectedParticipant.name || selectedParticipant.email}.`,
+        description: "Your message has been sent to the participant.",
       })
       setMessageDialogOpen(false)
       setMessageText("")
     } catch (error) {
+      console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message.",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const openAddItemDialog = () => {
+    setItemName("")
+    setItemQuantity(1)
+    setAddItemDialogOpen(true)
+  }
+
+  const openEditItemDialog = (item: PotluckItem) => {
+    setSelectedItem(item)
+    setItemName(item.name)
+    setItemQuantity(item.quantity)
+    setEditItemDialogOpen(true)
+  }
+
+  const handleAddItem = async () => {
+    if (!itemName.trim() || itemQuantity < 1) return
+
+    try {
+      setIsProcessing(true)
+      // Get the admin token from the URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminToken = urlParams.get('token') || potluck.adminToken;
+      
+      if (!adminToken) {
+        throw new Error('Admin token not found');
+      }
+      
+      const result = await addPotluckItem(potluck.eventCode, adminToken, {
+        name: itemName,
+        quantity: itemQuantity
+      })
+      
+      if (result.success) {
+        toast({
+          title: "Item added",
+          description: "The item has been added to your potluck.",
+        })
+        setAddItemDialogOpen(false)
+      } else {
+        throw new Error('Failed to add item')
+      }
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add the item. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleUpdateItem = async () => {
+    if (!selectedItem || !itemName.trim() || itemQuantity < 1) return
+
+    try {
+      setIsProcessing(true)
+      // Get the admin token from the URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminToken = urlParams.get('token') || potluck.adminToken;
+      
+      if (!adminToken) {
+        throw new Error('Admin token not found');
+      }
+      
+      const success = await updatePotluckItem(potluck.eventCode, adminToken, selectedItem.id, {
+        name: itemName,
+        quantity: itemQuantity
+      })
+      
+      if (success) {
+        toast({
+          title: "Item updated",
+          description: "The item has been updated successfully.",
+        })
+        setEditItemDialogOpen(false)
+      } else {
+        throw new Error('Failed to update item')
+      }
+    } catch (error) {
+      console.error('Error updating item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update the item. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleRemoveItem = async (item: PotluckItem) => {
+    if (!confirm(`Are you sure you want to remove "${item.name}"? This will also remove all signups for this item.`)) {
+      return
+    }
+
+    try {
+      // Get the admin token from the URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminToken = urlParams.get('token') || potluck.adminToken;
+      
+      if (!adminToken) {
+        throw new Error('Admin token not found');
+      }
+      
+      const success = await removePotluckItem(potluck.eventCode, adminToken, item.id)
+      
+      if (success) {
+        toast({
+          title: "Item removed",
+          description: "The item has been removed from your potluck.",
+        })
+      } else {
+        throw new Error('Failed to remove item')
+      }
+    } catch (error) {
+      console.error('Error removing item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove the item. Please try again.",
         variant: "destructive",
       })
     }
@@ -123,53 +277,65 @@ export function AdminDashboard({ potluck }: AdminDashboardProps) {
         <TabsContent value="items" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Items Needed</CardTitle>
-              <CardDescription>Track the items needed for your potluck and who's bringing them.</CardDescription>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <CardTitle>Items Needed</CardTitle>
+                  <CardDescription>Track the items needed for your potluck and who's bringing them.</CardDescription>
+                </div>
+                <Button onClick={openAddItemDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {potluck.items.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-4">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                      <div>
-                        <h3 className="font-medium">{item.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {item.signups.length} of {item.quantity} claimed
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
-                          <RefreshCw className="mr-2 h-3 w-3" />
-                          Update
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="mr-2 h-3 w-3" />
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-
-                    {item.signups.length > 0 && (
-                      <div className="mt-4 border-t pt-4">
-                        <h4 className="text-sm font-medium mb-2">Participants</h4>
-                        <div className="space-y-2">
-                          {item.signups.map((signup) => (
-                            <div key={signup.id} className="flex items-center justify-between text-sm">
-                              <span>
-                                {signup.participant.name || signup.participant.email}
-                                {signup.quantity > 1 && ` (${signup.quantity})`}
-                              </span>
-                              <Button variant="ghost" size="sm" onClick={() => openMessageDialog(signup.participant)}>
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                                Message
-                              </Button>
-                            </div>
-                          ))}
+                {potluck.items.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">No items added yet. Add your first item to get started.</p>
+                ) : (
+                  potluck.items.map((item) => (
+                    <div key={item.id} className="border rounded-lg p-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div>
+                          <h3 className="font-medium">{item.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {item.signups.length} of {item.quantity} claimed
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditItemDialog(item)}>
+                            <RefreshCw className="mr-2 h-3 w-3" />
+                            Update
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleRemoveItem(item)}>
+                            <Trash2 className="mr-2 h-3 w-3" />
+                            Remove
+                          </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {item.signups.length > 0 && (
+                        <div className="mt-4 border-t pt-4">
+                          <h4 className="text-sm font-medium mb-2">Participants</h4>
+                          <div className="space-y-2">
+                            {item.signups.map((signup) => (
+                              <div key={signup.id} className="flex items-center justify-between text-sm">
+                                <span>
+                                  {signup.participant.name || signup.participant.email}
+                                  {signup.quantity > 1 && ` (${signup.quantity})`}
+                                </span>
+                                <Button variant="ghost" size="sm" onClick={() => openMessageDialog(signup.participant)}>
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                  Message
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -308,6 +474,92 @@ export function AdminDashboard({ potluck }: AdminDashboardProps) {
               Cancel
             </Button>
             <Button onClick={handleSendMessage}>Send Message</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Item</DialogTitle>
+            <DialogDescription>
+              Add a new item to your potluck for participants to sign up for.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="item-name">Item Name</Label>
+              <Input
+                id="item-name"
+                placeholder="e.g., Pasta Salad"
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="item-quantity">Quantity Needed</Label>
+              <Input
+                id="item-quantity"
+                type="number"
+                min="1"
+                value={itemQuantity}
+                onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
+              />
+              <p className="text-sm text-muted-foreground">
+                How many of this item do you need for your potluck?
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddItemDialogOpen(false)} disabled={isProcessing}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddItem} disabled={isProcessing}>
+              {isProcessing ? "Adding..." : "Add Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editItemDialogOpen} onOpenChange={setEditItemDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Item</DialogTitle>
+            <DialogDescription>
+              Update the details of this potluck item.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-item-name">Item Name</Label>
+              <Input
+                id="edit-item-name"
+                placeholder="e.g., Pasta Salad"
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-item-quantity">Quantity Needed</Label>
+              <Input
+                id="edit-item-quantity"
+                type="number"
+                min="1"
+                value={itemQuantity}
+                onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
+              />
+              <p className="text-sm text-muted-foreground">
+                How many of this item do you need for your potluck?
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItemDialogOpen(false)} disabled={isProcessing}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateItem} disabled={isProcessing}>
+              {isProcessing ? "Updating..." : "Update Item"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

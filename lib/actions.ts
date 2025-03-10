@@ -89,31 +89,36 @@ export async function createPotluck(data: PotluckCreateInput): Promise<{ eventCo
   }
 }
 
-export async function updateNotificationSettings(eventCode: string, adminToken: string, enabled: boolean): Promise<void> {
-  // Verify the admin token matches this potluck
-  const potluckResult = await query(
-    `SELECT id FROM potlucks 
-     WHERE event_code = $1 AND admin_token = $2`,
-    [eventCode, adminToken]
-  );
+export async function updateNotificationSettings(eventCode: string, adminToken: string, notificationsEnabled: boolean): Promise<boolean> {
+  try {
+    // Get the potluck
+    const potluckResult = await query(
+      `SELECT * FROM potlucks WHERE event_code = $1 AND admin_token = $2`,
+      [eventCode, adminToken]
+    );
 
-  if (potluckResult.rows.length === 0) {
-    throw new Error('Unauthorized: Invalid admin token');
+    if (potluckResult.rows.length === 0) {
+      throw new Error(`Potluck not found with event code: ${eventCode}`);
+    }
+
+    const potluckId = potluckResult.rows[0].id;
+
+    // Update the notification settings
+    await query(
+      `UPDATE potlucks
+       SET notifications_enabled = $1
+       WHERE id = $2`,
+      [notificationsEnabled, potluckId]
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Error updating notification settings:', error);
+    return false;
   }
-
-  const potluckId = potluckResult.rows[0].id;
-
-  await query(
-    `UPDATE potlucks
-     SET notifications_enabled = $1, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $2`,
-    [enabled, potluckId]
-  );
-
-  revalidatePath(`/admin/${eventCode}`);
 }
 
-export async function messageParticipant(eventCode: string, adminToken: string, participantToken: string, message: string): Promise<void> {
+export async function messageParticipant(eventCode: string, adminToken: string, participantToken: string, message: string): Promise<boolean> {
   // Verify the admin token matches this potluck
   const potluckResult = await query(
     `SELECT id FROM potlucks 
@@ -142,6 +147,8 @@ export async function messageParticipant(eventCode: string, adminToken: string, 
 
   // In a real implementation, you would send an email to the participant
   console.log(`Sending message to ${participant.email}: ${message}`);
+
+  return true;
 }
 
 interface SignupParams {
@@ -289,6 +296,122 @@ export async function signUpForItem(params: SignupParams): Promise<{ participant
   } catch (error) {
     console.error('Error signing up for item:', error);
     throw error;
+  }
+}
+
+// New functions for managing potluck items
+
+export interface ItemUpdateInput {
+  name: string;
+  quantity: number;
+}
+
+export async function addPotluckItem(eventCode: string, adminToken: string, item: ItemUpdateInput): Promise<{ success: boolean; itemId?: string }> {
+  try {
+    // Get the potluck
+    const potluckResult = await query(
+      `SELECT * FROM potlucks WHERE event_code = $1 AND admin_token = $2`,
+      [eventCode, adminToken]
+    );
+
+    if (potluckResult.rows.length === 0) {
+      throw new Error(`Potluck not found or unauthorized access`);
+    }
+
+    const potluckId = potluckResult.rows[0].id;
+
+    // Insert the new item
+    const itemResult = await query(
+      `INSERT INTO potluck_items (potluck_id, name, quantity)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [potluckId, item.name, item.quantity]
+    );
+
+    if (!itemResult.rows[0].id) {
+      throw new Error('Failed to add item');
+    }
+
+    // Revalidate the admin page
+    revalidatePath(`/admin/${eventCode}`);
+    
+    return { 
+      success: true,
+      itemId: itemResult.rows[0].id.toString()
+    };
+  } catch (error) {
+    console.error('Error adding potluck item:', error);
+    return { success: false };
+  }
+}
+
+export async function updatePotluckItem(eventCode: string, adminToken: string, itemId: string, updates: ItemUpdateInput): Promise<boolean> {
+  try {
+    // Get the potluck
+    const potluckResult = await query(
+      `SELECT p.* FROM potlucks p
+       JOIN potluck_items i ON p.id = i.potluck_id
+       WHERE p.event_code = $1 AND p.admin_token = $2 AND i.id = $3`,
+      [eventCode, adminToken, itemId]
+    );
+
+    if (potluckResult.rows.length === 0) {
+      throw new Error(`Potluck not found or item doesn't belong to this potluck`);
+    }
+
+    // Update the item
+    await query(
+      `UPDATE potluck_items
+       SET name = $1, quantity = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3`,
+      [updates.name, updates.quantity, itemId]
+    );
+
+    // Revalidate the admin page
+    revalidatePath(`/admin/${eventCode}`);
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating potluck item:', error);
+    return false;
+  }
+}
+
+export async function removePotluckItem(eventCode: string, adminToken: string, itemId: string): Promise<boolean> {
+  try {
+    // Get the potluck
+    const potluckResult = await query(
+      `SELECT p.* FROM potlucks p
+       JOIN potluck_items i ON p.id = i.potluck_id
+       WHERE p.event_code = $1 AND p.admin_token = $2 AND i.id = $3`,
+      [eventCode, adminToken, itemId]
+    );
+
+    if (potluckResult.rows.length === 0) {
+      throw new Error(`Potluck not found or item doesn't belong to this potluck`);
+    }
+
+    // Delete any signups for this item first
+    await query(
+      `DELETE FROM item_signups
+       WHERE item_id = $1`,
+      [itemId]
+    );
+
+    // Delete the item
+    await query(
+      `DELETE FROM potluck_items
+       WHERE id = $1`,
+      [itemId]
+    );
+
+    // Revalidate the admin page
+    revalidatePath(`/admin/${eventCode}`);
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing potluck item:', error);
+    return false;
   }
 }
 
