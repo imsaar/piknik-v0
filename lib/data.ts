@@ -1,87 +1,209 @@
-import type { Potluck } from "./types"
+import type { Potluck, PotluckItem, Participant, ItemSignup } from "./types"
+import { query } from "./db"
 
 // This would connect to your database in a real implementation
 // For now, we'll return mock data
 
 export async function getPotluckForAdmin(id: string): Promise<Potluck | null> {
-  // Simulate a delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  try {
+    // Get the potluck
+    const potluckResult = await query(
+      `SELECT * FROM potlucks WHERE id = $1`,
+      [id]
+    );
 
-  // Create base objects first to avoid circular references
-  const item1 = { id: "item_1", name: "Pasta Salad", quantity: 2, signups: [] }
-  const item2 = { id: "item_2", name: "Hamburger Buns", quantity: 3, signups: [] }
-  const item3 = { id: "item_3", name: "Potato Chips", quantity: 4, signups: [] }
-  const item4 = { id: "item_4", name: "Watermelon", quantity: 2, signups: [] }
+    if (potluckResult.rows.length === 0) {
+      return null;
+    }
 
-  const participant1 = { id: "participant_1", email: "john@example.com", name: "John Doe", signups: [] }
-  const participant2 = { id: "participant_2", email: "sarah@example.com", name: "Sarah Johnson", signups: [] }
-  const participant3 = { id: "participant_3", email: "mike@example.com", name: "Mike Wilson", signups: [] }
+    const potluck = potluckResult.rows[0];
 
-  const signup1 = { id: "signup_1", quantity: 1, participant: participant1, item: item1 }
-  const signup2 = { id: "signup_2", quantity: 2, participant: participant2, item: item3 }
-  const signup3 = { id: "signup_3", quantity: 2, participant: participant3, item: item4 }
+    // Get the items
+    const itemsResult = await query(
+      `SELECT * FROM potluck_items WHERE potluck_id = $1`,
+      [id]
+    );
 
-  // Now add signups to items and participants
-  item1.signups = [signup1]
-  item3.signups = [signup2]
-  item4.signups = [signup3]
+    // Get the participants
+    const participantsResult = await query(
+      `SELECT * FROM participants WHERE potluck_id = $1`,
+      [id]
+    );
 
-  participant1.signups = [signup1]
-  participant2.signups = [signup2]
-  participant3.signups = [signup3]
+    // Get the signups
+    const signupsResult = await query(
+      `SELECT s.*, p.email as participant_email, p.name as participant_name, 
+              i.name as item_name, i.quantity as item_quantity
+       FROM item_signups s
+       JOIN participants p ON s.participant_id = p.id
+       JOIN potluck_items i ON s.item_id = i.id
+       WHERE p.potluck_id = $1`,
+      [id]
+    );
 
-  // Mock data
-  return {
-    id,
-    name: "Summer BBQ Potluck",
-    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    theme: "BBQ",
-    location: "123 Main St, Anytown, USA",
-    description: "Join us for a fun summer BBQ! Please bring your favorite dish to share.",
-    adminEmail: "admin@example.com",
-    adminName: "Jane Smith",
-    notificationsEnabled: true,
-    items: [item1, item2, item3, item4],
-    participants: [participant1, participant2, participant3],
+    // Map items with their signups
+    const items: PotluckItem[] = itemsResult.rows.map(item => {
+      const itemSignups = signupsResult.rows
+        .filter(signup => signup.item_id === item.id)
+        .map(signup => {
+          return {
+            id: signup.id.toString(),
+            quantity: signup.quantity,
+            participant: {
+              id: signup.participant_id.toString(),
+              email: signup.participant_email,
+              name: signup.participant_name || undefined,
+              signups: []
+            },
+            item: {
+              id: item.id.toString(),
+              name: item.name,
+              quantity: item.quantity,
+              signups: []
+            }
+          } as ItemSignup;
+        });
+
+      return {
+        id: item.id.toString(),
+        name: item.name,
+        quantity: item.quantity,
+        signups: itemSignups
+      } as PotluckItem;
+    });
+
+    // Map participants with their signups
+    const participants: Participant[] = participantsResult.rows.map(participant => {
+      const participantSignups = signupsResult.rows
+        .filter(signup => signup.participant_id === participant.id)
+        .map(signup => {
+          const matchingItem = itemsResult.rows.find(item => item.id === signup.item_id);
+          
+          return {
+            id: signup.id.toString(),
+            quantity: signup.quantity,
+            participant: {
+              id: participant.id.toString(),
+              email: participant.email,
+              name: participant.name || undefined,
+              signups: []
+            },
+            item: {
+              id: matchingItem.id.toString(),
+              name: matchingItem.name,
+              quantity: matchingItem.quantity,
+              signups: []
+            }
+          } as ItemSignup;
+        });
+
+      return {
+        id: participant.id.toString(),
+        email: participant.email,
+        name: participant.name || undefined,
+        signups: participantSignups
+      } as Participant;
+    });
+
+    // Transform DB model to application model
+    return {
+      id: potluck.id.toString(),
+      name: potluck.name,
+      date: new Date(potluck.date).toISOString(),
+      theme: potluck.theme || undefined,
+      location: potluck.location || undefined,
+      description: potluck.description || undefined,
+      adminEmail: potluck.admin_email,
+      adminName: potluck.admin_name || undefined,
+      notificationsEnabled: potluck.notifications_enabled,
+      items,
+      participants
+    };
+  } catch (error) {
+    console.error('Error fetching potluck for admin:', error);
+    return null;
   }
 }
 
 export async function getPotluckForParticipant(id: string): Promise<Potluck | null> {
-  // Simulate a delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  try {
+    // Get the potluck
+    const potluckResult = await query(
+      `SELECT * FROM potlucks WHERE id = $1`,
+      [id]
+    );
 
-  // Create base objects first to avoid circular references
-  const item1 = { id: "item_1", name: "Pasta Salad", quantity: 2, signups: [] }
-  const item2 = { id: "item_2", name: "Hamburger Buns", quantity: 3, signups: [] }
-  const item3 = { id: "item_3", name: "Potato Chips", quantity: 4, signups: [] }
-  const item4 = { id: "item_4", name: "Watermelon", quantity: 2, signups: [] }
+    if (potluckResult.rows.length === 0) {
+      return null;
+    }
 
-  const participant1 = { id: "participant_1", email: "john@example.com", name: "John Doe", signups: [] }
-  const participant2 = { id: "participant_2", email: "sarah@example.com", name: "Sarah Johnson", signups: [] }
-  const participant3 = { id: "participant_3", email: "mike@example.com", name: "Mike Wilson", signups: [] }
+    const potluck = potluckResult.rows[0];
 
-  const signup1 = { id: "signup_1", quantity: 1, participant: participant1, item: item1 }
-  const signup2 = { id: "signup_2", quantity: 2, participant: participant2, item: item3 }
-  const signup3 = { id: "signup_3", quantity: 2, participant: participant3, item: item4 }
+    // Get the items
+    const itemsResult = await query(
+      `SELECT * FROM potluck_items WHERE potluck_id = $1`,
+      [id]
+    );
 
-  // Now add signups to items
-  item1.signups = [signup1]
-  item3.signups = [signup2]
-  item4.signups = [signup3]
+    // Get the signups
+    const signupsResult = await query(
+      `SELECT s.*, p.email as participant_email, p.name as participant_name, 
+              i.name as item_name, i.quantity as item_quantity
+       FROM item_signups s
+       JOIN participants p ON s.participant_id = p.id
+       JOIN potluck_items i ON s.item_id = i.id
+       WHERE p.potluck_id = $1`,
+      [id]
+    );
 
-  // Mock data - simplified version for participants
-  return {
-    id,
-    name: "Summer BBQ Potluck",
-    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    theme: "BBQ",
-    location: "123 Main St, Anytown, USA",
-    description: "Join us for a fun summer BBQ! Please bring your favorite dish to share.",
-    adminEmail: "admin@example.com",
-    adminName: "Jane Smith",
-    notificationsEnabled: true,
-    items: [item1, item2, item3, item4],
-    participants: [],
+    // Map items with their signups
+    const items: PotluckItem[] = itemsResult.rows.map(item => {
+      const itemSignups = signupsResult.rows
+        .filter(signup => signup.item_id === item.id)
+        .map(signup => {
+          return {
+            id: signup.id.toString(),
+            quantity: signup.quantity,
+            participant: {
+              id: signup.participant_id.toString(),
+              email: signup.participant_email,
+              name: signup.participant_name || undefined,
+              signups: []
+            },
+            item: {
+              id: item.id.toString(),
+              name: item.name,
+              quantity: item.quantity,
+              signups: []
+            }
+          } as ItemSignup;
+        });
+
+      return {
+        id: item.id.toString(),
+        name: item.name,
+        quantity: item.quantity,
+        signups: itemSignups
+      } as PotluckItem;
+    });
+
+    // Transform DB model to application model, but hide participant details
+    return {
+      id: potluck.id.toString(),
+      name: potluck.name,
+      date: new Date(potluck.date).toISOString(),
+      theme: potluck.theme || undefined,
+      location: potluck.location || undefined,
+      description: potluck.description || undefined,
+      adminEmail: potluck.admin_email,
+      adminName: potluck.admin_name || undefined,
+      notificationsEnabled: potluck.notifications_enabled,
+      items,
+      participants: [] // Hide participant details from participants view
+    };
+  } catch (error) {
+    console.error('Error fetching potluck for participant:', error);
+    return null;
   }
 }
 

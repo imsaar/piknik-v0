@@ -2,8 +2,12 @@ import type React from "react"
 import { Inter } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
+import { initializeDatabase } from "@/lib/db"
 
 const inter = Inter({ subsets: ["latin"] })
+
+// Initialize the database on application startup
+initializeDatabase().catch(console.error)
 
 export const metadata = {
   title: "PIKNIK - Potluck Event Organizer",

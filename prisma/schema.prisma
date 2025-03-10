@@ -1,0 +1,64 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Potluck {
+  id                   String        @id @default(uuid())
+  name                 String
+  date                 DateTime
+  theme                String?
+  location             String?
+  description          String?
+  adminEmail           String
+  adminName            String?
+  notificationsEnabled Boolean       @default(true)
+  items                PotluckItem[]
+  participants         Participant[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+model PotluckItem {
+  id        String       @id @default(uuid())
+  name      String
+  quantity  Int
+  potluck   Potluck      @relation(fields: [potluckId], references: [id], onDelete: Cascade)
+  potluckId String
+  signups   ItemSignup[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Participant {
+  id        String       @id @default(uuid())
+  email     String
+  name      String?
+  potluck   Potluck      @relation(fields: [potluckId], references: [id], onDelete: Cascade)
+  potluckId String
+  signups   ItemSignup[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([email, potluckId])
+}
+
+model ItemSignup {
+  id            String      @id @default(uuid())
+  quantity      Int
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  participantId String
+  item          PotluckItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId        String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([participantId, itemId])
+} 

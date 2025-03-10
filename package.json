@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:test": "node scripts/test-db.js"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
@@ -59,7 +62,11 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
-    "zod": "latest"
+    "zod": "latest",
+    "@prisma/client": "^5.10.2",
+    "dotenv": "^16.4.5",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/node": "^22",
@@ -67,6 +74,9 @@
     "@types/react-dom": "^19",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "prisma": "^5.10.2",
+    "@types/pg": "^8.11.0",
+    "@types/uuid": "^9.0.8"
   }
 }
