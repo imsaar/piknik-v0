@@ -75,7 +75,7 @@ export function ParticipantView({ potluck }: ParticipantViewProps) {
     setIsSubmitting(true)
     try {
       await signUpForItem({
-        potluckId: potluck.id,
+        eventCode: potluck.eventCode,
         itemId: selectedItem.id,
         email: values.email,
         name: values.name,

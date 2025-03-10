@@ -8,6 +8,8 @@ PIKNIK is a web application that helps you organize potluck events with friends 
 - Add items that need to be brought to the event
 - Share a link with guests so they can sign up to bring items
 - View event details and manage signups
+- Secure, non-guessable event codes and authentication tokens
+- User-friendly sharing links with memorable event codes
 
 ## Tech Stack
 
@@ -16,6 +18,17 @@ PIKNIK is a web application that helps you organize potluck events with friends 
 - [node-postgres](https://node-postgres.com/) - PostgreSQL client for Node.js
 - [Tailwind CSS](https://tailwindcss.com/) - Styling
 - [Radix UI](https://www.radix-ui.com/) - UI components
+
+## Security Features
+
+PIKNIK uses several security features to protect your potluck events:
+
+- **Event Codes**: Human-readable unique identifiers for potlucks (e.g., `ABCD-2345`)
+- **Admin Tokens**: Cryptographically secure tokens for potluck management
+- **Participant Tokens**: Secure tokens for participants that map to their profiles
+
+These features provide a secure way to share potluck links while protecting against unauthorized access. 
+For more details, see [security documentation](docs/security.md).
 
 ## Prerequisites
 

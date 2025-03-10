@@ -28,6 +28,8 @@ export async function initializeDatabase() {
     await query(`
       CREATE TABLE IF NOT EXISTS potlucks (
         id SERIAL PRIMARY KEY,
+        event_code VARCHAR(20) NOT NULL UNIQUE,
+        admin_token VARCHAR(64) NOT NULL UNIQUE,
         name VARCHAR(255) NOT NULL,
         date TIMESTAMP NOT NULL,
         theme VARCHAR(255),
@@ -37,8 +39,14 @@ export async function initializeDatabase() {
         admin_name VARCHAR(255),
         notifications_enabled BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT event_code_format CHECK (event_code ~ '^[A-Z0-9]{4}-[A-Z0-9]{4}$')
       )
+    `);
+
+    // Add an index on event_code
+    await query(`
+      CREATE INDEX IF NOT EXISTS potlucks_event_code_idx ON potlucks (event_code);
     `);
 
     // PotluckItem table
@@ -57,6 +65,7 @@ export async function initializeDatabase() {
     await query(`
       CREATE TABLE IF NOT EXISTS participants (
         id SERIAL PRIMARY KEY,
+        token VARCHAR(64) NOT NULL UNIQUE,
         potluck_id INTEGER REFERENCES potlucks(id) ON DELETE CASCADE,
         email VARCHAR(255) NOT NULL,
         name VARCHAR(255),

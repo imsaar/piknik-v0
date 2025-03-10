@@ -16,15 +16,24 @@ export default function SuccessPage() {
   const [adminUrl, setAdminUrl] = useState("")
 
   useEffect(() => {
-    const id = searchParams.get("id")
-    const adminId = searchParams.get("adminId")
+    // Get the new parameter names from the URL
+    const eventCode = searchParams.get("eventCode")
+    const adminToken = searchParams.get("adminToken")
     const baseUrl = window.location.origin
 
-    if (id) {
-      setParticipantUrl(`${baseUrl}/potluck/${id}`)
+    // For backward compatibility, also check the old parameter names
+    const legacyId = searchParams.get("id")
+    const legacyAdminId = searchParams.get("adminId")
+
+    // Use the new parameters if available, otherwise fall back to legacy parameters
+    const potluckId = eventCode || legacyId
+    const adminId = adminToken || legacyAdminId
+
+    if (potluckId) {
+      setParticipantUrl(`${baseUrl}/potluck/${potluckId}`)
     }
     if (adminId) {
-      setAdminUrl(`${baseUrl}/admin/${adminId}`)
+      setAdminUrl(`${baseUrl}/admin/${potluckId}?token=${adminId}`)
     }
   }, [searchParams])
 

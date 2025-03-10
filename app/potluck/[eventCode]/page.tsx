@@ -4,12 +4,12 @@ import { getPotluckForParticipant } from "@/lib/data"
 
 interface PotluckPageProps {
   params: {
-    id: string
+    eventCode: string
   }
 }
 
 export default async function PotluckPage({ params }: PotluckPageProps) {
-  const potluck = await getPotluckForParticipant(params.id)
+  const potluck = await getPotluckForParticipant(params.eventCode)
 
   if (!potluck) {
     notFound()
@@ -20,5 +20,4 @@ export default async function PotluckPage({ params }: PotluckPageProps) {
       <ParticipantView potluck={potluck} />
     </div>
   )
-}
-
+} 

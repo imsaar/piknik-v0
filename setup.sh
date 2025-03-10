@@ -23,6 +23,10 @@ else
     echo "Database piknik already exists."
 fi
 
+# Run migration script to ensure schema is up to date
+echo "Running schema migration..."
+node scripts/migrate-schema.js
+
 # Test database connection
 echo "Testing database connection..."
 npm run db:test

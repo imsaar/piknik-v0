@@ -9,10 +9,16 @@
     "lint": "next lint",
     "migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "db:test": "node scripts/test-db.js"
+    "db:test": "node scripts/test-db.js",
+    "db:migrate": "node scripts/migrate-schema.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:simple": "npx ts-node __tests__/simplified-test.ts",
+    "test:simple:js": "node __tests__/simplified-test.js"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
+    "@prisma/client": "^5.10.2",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-aspect-ratio": "^1.1.1",
@@ -47,36 +53,52 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "latest",
+    "dotenv": "^16.4.5",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
+    "nanoid": "^5.0.6",
     "next": "^15.2.1",
     "next-themes": "^0.4.4",
-    "react": "^19",
+    "pg": "^8.11.3",
+    "react": "^18.3.1",
     "react-day-picker": "8.10.1",
-    "react-dom": "^19",
+    "react-dom": "^18.3.1",
     "react-hook-form": "latest",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^9.0.1",
     "vaul": "^0.9.6",
-    "zod": "latest",
-    "@prisma/client": "^5.10.2",
-    "dotenv": "^16.4.5",
-    "pg": "^8.11.3",
-    "uuid": "^9.0.1"
+    "zod": "latest"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
     "@types/node": "^22",
+    "@types/pg": "^8.11.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^9.0.8",
+    "jest": "^29.7.0",
+    "jest-environment-node": "^29.7.0",
     "postcss": "^8",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5",
     "prisma": "^5.10.2",
-    "@types/pg": "^8.11.0",
-    "@types/uuid": "^9.0.8"
+    "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   }
 }

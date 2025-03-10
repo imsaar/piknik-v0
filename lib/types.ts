@@ -1,5 +1,7 @@
 export interface Potluck {
   id: string
+  eventCode: string
+  adminToken?: string  // Only included for admin view
   name: string
   date: string
   theme?: string
@@ -21,6 +23,7 @@ export interface PotluckItem {
 
 export interface Participant {
   id: string
+  token?: string  // Only included for admin view or when the participant is logged in
   email: string
   name?: string
   signups: ItemSignup[]

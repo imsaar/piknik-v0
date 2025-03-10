@@ -78,7 +78,7 @@ export function CreatePotluckForm() {
         title: "Potluck created!",
         description: "Check your email for the admin link to manage your potluck.",
       })
-      router.push(`/success?id=${result.id}&adminId=${result.adminId}`)
+      router.push(`/success?eventCode=${result.eventCode}&adminToken=${result.adminToken}`)
     } catch (error) {
       toast({
         title: "Error",
