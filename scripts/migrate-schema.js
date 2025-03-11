@@ -3,10 +3,14 @@ require('dotenv').config();
 const { Pool } = require('pg');
 const crypto = require('crypto');
 
-async function migrateSchema() {
-  const pool = new Pool({
+async function migrateSchema(providedPool = null) {
+  // Use provided pool or create a new one
+  const pool = providedPool || new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: isSSLRequired() ? { rejectUnauthorized: false } : false
   });
+  
+  const shouldClosePool = !providedPool;
 
   try {
     console.log('Starting schema migration...');
@@ -42,9 +46,33 @@ async function migrateSchema() {
     console.log('Schema migration completed successfully!');
   } catch (err) {
     console.error('Error during schema migration:', err.message);
+    throw err; // Propagate error to caller
   } finally {
-    await pool.end();
+    // Only close the pool if we created it in this function
+    if (shouldClosePool) {
+      await pool.end();
+    }
   }
+}
+
+// Helper function to determine if SSL is required
+function isSSLRequired() {
+  // Check if DATABASE_SSL is explicitly set
+  if (process.env.DATABASE_SSL === 'true') {
+    return true;
+  }
+  
+  // Check if using Supabase by looking at the DATABASE_URL
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase.co')) {
+    return true;
+  }
+  
+  // Check if in production environment
+  if (process.env.NODE_ENV === 'production') {
+    return true;
+  }
+  
+  return false;
 }
 
 // Helper to add a column if it doesn't exist
@@ -243,4 +271,10 @@ async function normalizeEventCodes(pool) {
   }
 }
 
-migrateSchema(); 
+// If this script is run directly (not imported), run the migration
+if (require.main === module) {
+  migrateSchema();
+}
+
+// Export for use in other files
+module.exports = { migrateSchema }; 

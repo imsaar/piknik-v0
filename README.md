@@ -120,9 +120,126 @@ The application uses the following database schema:
 
 ## Deployment
 
-This application can be deployed to any platform that supports Next.js applications, such as Vercel, Netlify, or your own server.
+### Database Options
 
-Remember to set up your production PostgreSQL database and update the `DATABASE_URL` environment variable accordingly.
+PIKNIK supports multiple PostgreSQL database providers:
+
+1. **Local PostgreSQL** - For development and self-hosted deployments
+2. **[Supabase](https://supabase.com)** - Open-source Firebase alternative with a generous free tier
+   - See [Supabase setup guide](docs/supabase-setup.md) for detailed instructions
+3. **Other PostgreSQL providers** - Any PostgreSQL-compatible database service will work
+
+### Deploying to Vercel
+
+PIKNIK is optimized for deployment on [Vercel](https://vercel.com), the platform built by the creators of Next.js. Here's how to deploy your PIKNIK instance to Vercel:
+
+#### Prerequisites for Deployment
+
+1. A Vercel account (sign up at [vercel.com](https://vercel.com))
+2. A PostgreSQL database (options include [Supabase](https://supabase.com), [Neon](https://neon.tech), [Railway](https://railway.app), or any other PostgreSQL provider)
+3. Git repository with your PIKNIK code (GitHub, GitLab, or Bitbucket)
+
+#### Deployment Steps
+
+1. **Set up a PostgreSQL Database**
+
+   Set up a PostgreSQL database with your preferred provider. Make sure to:
+   - Create a new database named `piknik` (or your preferred name)
+   - Secure your database with strong credentials
+   - Note down the connection string, which follows this format:
+     ```
+     postgresql://username:password@hostname:port/database
+     ```
+
+2. **Deploy to Vercel**
+
+   **Option A: Deploy from the Vercel Dashboard**
+   
+   1. Log in to your [Vercel Dashboard](https://vercel.com/dashboard)
+   2. Click "Add New Project"
+   3. Import your repository from GitHub, GitLab, or Bitbucket
+   4. Configure the project:
+      - Framework Preset: Next.js
+      - Root Directory: `.` (default)
+      - Build and Output Settings: Leave as default
+   5. Add the environment variable:
+      - Name: `DATABASE_URL`
+      - Value: Your PostgreSQL connection string
+   6. Click "Deploy"
+
+   **Option B: Deploy using Vercel CLI**
+   
+   1. Install the Vercel CLI:
+      ```bash
+      npm install -g vercel
+      ```
+   
+   2. Login to Vercel:
+      ```bash
+      vercel login
+      ```
+   
+   3. Navigate to your project directory and deploy:
+      ```bash
+      cd piknik-v0
+      vercel
+      ```
+   
+   4. Follow the interactive prompts:
+      - Set up and deploy: Yes
+      - Existing project: No (or Yes if redeploying)
+      - Link to directory: (press Enter for current)
+      - Environment variables: Add DATABASE_URL when prompted
+
+3. **Initialize the Database Schema**
+
+   The database schema will be automatically initialized during deployment if you set up the environment variables correctly:
+   
+   1. Go to your Vercel project dashboard
+   2. Navigate to the "Settings" tab and then "Environment Variables"
+   3. Add these environment variables:
+      - Name: `DATABASE_URL`
+      - Value: Your PostgreSQL connection string
+      
+      - Name: `RUN_MIGRATIONS`
+      - Value: `true`
+   4. Deploy your application
+   5. The build process will automatically run the database migrations
+
+   Note: The `RUN_MIGRATIONS` variable is already configured in the `vercel.json` file, but you can override it in your project settings if needed.
+
+4. **Verify Deployment**
+
+   1. Visit your deployed application URL (provided by Vercel)
+   2. Create a test potluck to verify everything is working correctly
+   3. If you encounter any issues, check the logs in your Vercel dashboard
+
+### Custom Domain Setup (Optional)
+
+To use a custom domain with your PIKNIK deployment:
+
+1. Go to your project in the Vercel dashboard
+2. Navigate to the "Domains" tab
+3. Add your domain and follow the verification steps
+4. Update your domain's DNS settings as instructed by Vercel
+
+### Continuous Deployment
+
+Vercel automatically sets up continuous deployment from your Git repository. Any changes pushed to your main branch will be automatically deployed.
+
+To change this behavior:
+1. Go to your project settings in Vercel
+2. Navigate to the "Git" tab
+3. Under "Production Branch," you can change which branch triggers production deployments
+
+### Monitoring and Logs
+
+To monitor your application:
+1. Go to your project in the Vercel dashboard
+2. Navigate to the "Analytics" tab for performance metrics
+3. Check the "Logs" tab to troubleshoot any issues
+
+This application can also be deployed to other platforms that support Next.js applications, such as Netlify or your own server.
 
 ## License
 
